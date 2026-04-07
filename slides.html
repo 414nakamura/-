@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>プロジェクト進捗共有・状況報告</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif;
+      background: #1a1a2e;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .controls {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 20px;
+      align-items: center;
+    }
+
+    .controls button {
+      background: #16213e;
+      color: #e0e0e0;
+      border: 1px solid #0f3460;
+      padding: 10px 24px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: background 0.2s;
+    }
+
+    .controls button:hover { background: #0f3460; }
+
+    .slide-counter {
+      color: #a0a0c0;
+      font-size: 14px;
+      min-width: 80px;
+      text-align: center;
+    }
+
+    .slide-container {
+      width: 900px;
+      max-width: 100%;
+      aspect-ratio: 16/9;
+      position: relative;
+    }
+
+    .slide {
+      display: none;
+      width: 100%;
+      height: 100%;
+      border-radius: 12px;
+      padding: 48px 56px;
+      position: absolute;
+      top: 0; left: 0;
+    }
+
+    .slide.active { display: flex; flex-direction: column; }
+
+    /* Slide 1 - Title */
+    .slide-title {
+      background: linear-gradient(135deg, #0f3460 0%, #16213e 60%, #1a1a2e 100%);
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+    }
+
+    .slide-title .tag {
+      background: #e94560;
+      color: white;
+      font-size: 12px;
+      padding: 4px 12px;
+      border-radius: 20px;
+      letter-spacing: 2px;
+      margin-bottom: 24px;
+      display: inline-block;
+    }
+
+    .slide-title h1 {
+      color: white;
+      font-size: 32px;
+      font-weight: 700;
+      line-height: 1.4;
+      margin-bottom: 16px;
+    }
+
+    .slide-title .subtitle {
+      color: #a0b4d0;
+      font-size: 16px;
+    }
+
+    /* Slide 2 - Overview */
+    .slide-overview {
+      background: linear-gradient(135deg, #16213e 0%, #0f3460 100%);
+    }
+
+    /* Slide 3 - Status */
+    .slide-status {
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    }
+
+    /* Slide 4 - Analysis */
+    .slide-analysis {
+      background: linear-gradient(135deg, #0f3460 0%, #1a1a2e 100%);
+    }
+
+    /* Slide 5 - Actions */
+    .slide-actions {
+      background: linear-gradient(135deg, #16213e 0%, #1a2a4a 100%);
+    }
+
+    /* Slide 6 - Decisions */
+    .slide-decisions {
+      background: linear-gradient(135deg, #0d1b2a 0%, #1b3a5c 100%);
+    }
+
+    /* Slide 7 - Next Steps */
+    .slide-next {
+      background: linear-gradient(135deg, #0f3460 0%, #1a1a2e 100%);
+    }
+
+    .slide-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 32px;
+    }
+
+    .slide-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      flex-shrink: 0;
+    }
+
+    .icon-blue { background: rgba(99, 179, 237, 0.2); }
+    .icon-red { background: rgba(233, 69, 96, 0.2); }
+    .icon-green { background: rgba(72, 199, 142, 0.2); }
+    .icon-orange { background: rgba(251, 146, 60, 0.2); }
+    .icon-purple { background: rgba(167, 139, 250, 0.2); }
+
+    .slide h2 {
+      color: #e0e8f8;
+      font-size: 22px;
+      font-weight: 700;
+    }
+
+    .slide-body {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 14px;
+    }
+
+    .card {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 10px;
+      padding: 16px 20px;
+    }
+
+    .card p {
+      color: #c8d8f0;
+      font-size: 15px;
+      line-height: 1.7;
+    }
+
+    .kpi-row {
+      display: flex;
+      gap: 14px;
+    }
+
+    .kpi-box {
+      flex: 1;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 10px;
+      padding: 18px 16px;
+      text-align: center;
+    }
+
+    .kpi-box .label {
+      color: #90a8c8;
+      font-size: 12px;
+      margin-bottom: 8px;
+    }
+
+    .kpi-box .value {
+      font-size: 32px;
+      font-weight: 700;
+    }
+
+    .kpi-box .note {
+      color: #90a8c8;
+      font-size: 11px;
+      margin-top: 6px;
+    }
+
+    .bad { color: #e94560; }
+    .good { color: #48c78e; }
+    .neutral { color: #63b3ed; }
+    .warn { color: #fb923c; }
+
+    .list-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      color: #c8d8f0;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    .list-item .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #63b3ed;
+      flex-shrink: 0;
+      margin-top: 8px;
+    }
+
+    .dot-red { background: #e94560 !important; }
+    .dot-green { background: #48c78e !important; }
+    .dot-orange { background: #fb923c !important; }
+
+    .two-col {
+      display: flex;
+      gap: 14px;
+      flex: 1;
+    }
+
+    .col {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .col-title {
+      color: #90a8c8;
+      font-size: 12px;
+      letter-spacing: 1px;
+      margin-bottom: 4px;
+      text-transform: uppercase;
+    }
+
+    .tag-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .tag-pill {
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .pill-blue { background: rgba(99,179,237,0.15); color: #63b3ed; border: 1px solid rgba(99,179,237,0.3); }
+    .pill-green { background: rgba(72,199,142,0.15); color: #48c78e; border: 1px solid rgba(72,199,142,0.3); }
+    .pill-red { background: rgba(233,69,96,0.15); color: #e94560; border: 1px solid rgba(233,69,96,0.3); }
+
+    .divider {
+      border: none;
+      border-top: 1px solid rgba(255,255,255,0.1);
+      margin: 4px 0;
+    }
+
+    .action-num {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: #0f3460;
+      border: 1px solid #63b3ed;
+      color: #63b3ed;
+      font-size: 12px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+  </style>
+</head>
+<body>
+
+<div class="controls">
+  <button onclick="changeSlide(-1)">&#9664; 前へ</button>
+  <span class="slide-counter" id="counter">1 / 7</span>
+  <button onclick="changeSlide(1)">次へ &#9654;</button>
+</div>
+
+<div class="slide-container">
+
+  <!-- Slide 1: Title -->
+  <div class="slide slide-title active">
+    <div class="tag">INTERNAL REPORT</div>
+    <h1>プロジェクト進捗共有<br>状況報告</h1>
+    <div class="subtitle">IS活動の現状分析と改善方針 | 2026年4月</div>
+  </div>
+
+  <!-- Slide 2: Overview -->
+  <div class="slide slide-overview">
+    <div class="slide-header">
+      <div class="slide-icon icon-blue">📋</div>
+      <h2>概要・現状整理</h2>
+    </div>
+    <div class="slide-body">
+      <div class="card">
+        <p>既存の架電活動は対象セグメントを絞りすぎた結果、すでに多くへ架電し切っている状態。</p>
+      </div>
+      <div class="card">
+        <p>トーク内容も改善がないまま同一訴求で継続しており、成果改善の余地を取り切れていない。</p>
+      </div>
+      <div class="card" style="border-color: rgba(233,69,96,0.4); background: rgba(233,69,96,0.08);">
+        <p style="color: #f0c0c8;"><strong style="color:#e94560;">対応方針：</strong>リスト設計の見直し ＋ トークの再構築・実装が急務</p>
+      </div>
+      <div class="card" style="border-color: rgba(72,199,142,0.3); background: rgba(72,199,142,0.06);">
+        <p style="color: #a0e8c8;"><strong style="color:#48c78e;">確認済：</strong>土田さんとの面談完了。4月末での解約を確定。</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Slide 3: KPI Status -->
+  <div class="slide slide-status">
+    <div class="slide-header">
+      <div class="slide-icon icon-red">📉</div>
+      <h2>重要指標の現状</h2>
+    </div>
+    <div class="slide-body">
+      <div class="kpi-row">
+        <div class="kpi-box">
+          <div class="label">決裁者接続からのアポ率（現状）</div>
+          <div class="value bad">~9%</div>
+          <div class="note">12月以降 10%割れが継続</div>
+        </div>
+        <div class="kpi-box">
+          <div class="label">決裁者アポ率（目標）</div>
+          <div class="value good">25%</div>
+          <div class="note">IS 15件目標の達成ライン</div>
+        </div>
+        <div class="kpi-box">
+          <div class="label">その他成立率</div>
+          <div class="value neutral">微増</div>
+          <div class="note">大きな悪化なし</div>
+        </div>
+      </div>
+      <div class="card" style="border-color: rgba(233,69,96,0.3); background: rgba(233,69,96,0.07);">
+        <div class="list-item">
+          <div class="dot dot-red"></div>
+          <span><strong style="color:#e94560;">ボトルネック特定：</strong>決裁者アポ率の低下が主因。その他指標はむしろ微増傾向であり、課題は明確。</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Slide 4: Analysis -->
+  <div class="slide slide-analysis">
+    <div class="slide-header">
+      <div class="slide-icon icon-orange">🔍</div>
+      <h2>問題の分析</h2>
+    </div>
+    <div class="slide-body">
+      <div class="two-col">
+        <div class="col">
+          <div class="col-title">課題要因</div>
+          <div class="card">
+            <div class="list-item" style="margin-bottom:10px;">
+              <div class="dot dot-red"></div>
+              <span><strong>リストの質</strong></span>
+            </div>
+            <div class="list-item" style="margin-bottom:10px;">
+              <div class="dot dot-red"></div>
+              <span><strong>架電タイミング</strong></span>
+            </div>
+            <div class="list-item">
+              <div class="dot dot-red"></div>
+              <span><strong>トーク内容</strong></span>
+            </div>
+          </div>
+        </div>
+        <div class="col">
+          <div class="col-title">運用上の問題</div>
+          <div class="card" style="flex:1;">
+            <div class="list-item" style="margin-bottom:12px;">
+              <div class="dot dot-orange"></div>
+              <span>セグメントを絞りすぎた結果、新規に当たれる対象が限定的に</span>
+            </div>
+            <hr class="divider">
+            <div class="list-item" style="margin-top:12px;">
+              <div class="dot dot-orange"></div>
+              <span>同一トークの継続により、成果改善の余地を取り切れていない</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Slide 5: Actions in Progress -->
+  <div class="slide slide-actions">
+    <div class="slide-header">
+      <div class="slide-icon icon-green">⚡</div>
+      <h2>進行中の施策</h2>
+    </div>
+    <div class="slide-body">
+      <div class="two-col">
+        <div class="col">
+          <div class="col-title">リスト・エリア再設計</div>
+          <div class="card" style="flex:1;">
+            <div class="list-item" style="margin-bottom:10px;">
+              <div class="dot dot-green"></div>
+              <span>優先リストを「未結論案件」中心に再定義</span>
+            </div>
+            <div class="list-item" style="margin-bottom:10px;">
+              <div class="dot dot-green"></div>
+              <span>接触済み案件も再架電対象に追加</span>
+            </div>
+            <div class="list-item" style="margin-bottom:6px;">
+              <div class="dot dot-green"></div>
+              <span>受注率の高いエリアへ集中</span>
+            </div>
+            <div class="tag-list" style="margin-top:8px; padding-left:16px;">
+              <span class="tag-pill pill-blue">東京</span>
+              <span class="tag-pill pill-blue">神奈川</span>
+              <span class="tag-pill pill-blue">千葉</span>
+              <span class="tag-pill pill-blue">大阪</span>
+            </div>
+            <div class="list-item" style="margin-top:10px;">
+              <div class="dot dot-green"></div>
+              <span>診療科目を絞り込んだ高精度リストを作成予定</span>
+            </div>
+          </div>
+        </div>
+        <div class="col">
+          <div class="col-title">トーク改善</div>
+          <div class="card" style="flex:1;">
+            <div class="list-item" style="margin-bottom:10px;">
+              <div class="dot dot-orange"></div>
+              <span><strong style="color:#fb923c;">最優先試行中：</strong>決裁者NG対象へ「5,000円訴求」を展開</span>
+            </div>
+            <div class="list-item" style="margin-bottom:10px;">
+              <div class="dot dot-green"></div>
+              <span>5,000円トーク：前日に展開済み</span>
+            </div>
+            <div class="list-item">
+              <div class="dot dot-green"></div>
+              <span>現場で実装開始、初期反応を確認しながら進行中</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Slide 6: Decisions -->
+  <div class="slide slide-decisions">
+    <div class="slide-header">
+      <div class="slide-icon icon-purple">✅</div>
+      <h2>決定事項</h2>
+    </div>
+    <div class="slide-body">
+      <div class="card" style="border-color: rgba(167,139,250,0.3); background: rgba(167,139,250,0.06);">
+        <div class="list-item">
+          <div class="dot" style="background:#a78bfa;"></div>
+          <span>まずは短期的に、<strong style="color:#c4b5fd;">5,000円訴求</strong>を使った打ち手を回して効果検証を行う</span>
+        </div>
+      </div>
+      <div class="card" style="border-color: rgba(167,139,250,0.3); background: rgba(167,139,250,0.06);">
+        <div class="list-item">
+          <div class="dot" style="background:#a78bfa;"></div>
+          <span>優先リストは<strong style="color:#c4b5fd;">未結論案件中心</strong>に組み直し、受注率の高い地域・診療科目へ集中する</span>
+        </div>
+      </div>
+      <div class="card" style="border-color: rgba(167,139,250,0.3); background: rgba(167,139,250,0.06);">
+        <div class="list-item">
+          <div class="dot" style="background:#a78bfa;"></div>
+          <span>今後の改善は、<strong style="color:#c4b5fd;">リストの再設計</strong>と<strong style="color:#c4b5fd;">トークの実装・検証</strong>を並行して進める</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Slide 7: Next Steps -->
+  <div class="slide slide-next">
+    <div class="slide-header">
+      <div class="slide-icon icon-blue">📌</div>
+      <h2>対応事項（ネクストステップ）</h2>
+    </div>
+    <div class="slide-body">
+      <div style="display:flex; flex-direction:column; gap:10px;">
+        <div class="card">
+          <div class="list-item">
+            <div class="action-num">1</div>
+            <span>決裁者NG対象に対する<strong>5,000円トークの運用継続</strong>・効果確認</span>
+          </div>
+        </div>
+        <div class="card">
+          <div class="list-item">
+            <div class="action-num">2</div>
+            <span><strong>優先リストを未結論案件中心で再構築</strong>する</span>
+          </div>
+        </div>
+        <div class="card">
+          <div class="list-item">
+            <div class="action-num">3</div>
+            <span>東京・神奈川・千葉・大阪を中心に、<strong>受注率の高いエリアへ架電対象を再集中</strong></span>
+          </div>
+        </div>
+        <div class="card">
+          <div class="list-item">
+            <div class="action-num">4</div>
+            <span><strong>診療科目を絞り込んだ新しい架電リスト</strong>を作成する</span>
+          </div>
+        </div>
+        <div class="card">
+          <div class="list-item">
+            <div class="action-num">5</div>
+            <span>新トークの<strong>初期所感と数値変化を確認</strong>し、必要に応じて改善を加える</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  let current = 0;
+  const slides = document.querySelectorAll('.slide');
+  const counter = document.getElementById('counter');
+
+  function showSlide(n) {
+    slides[current].classList.remove('active');
+    current = (n + slides.length) % slides.length;
+    slides[current].classList.add('active');
+    counter.textContent = `${current + 1} / ${slides.length}`;
+  }
+
+  function changeSlide(dir) {
+    showSlide(current + dir);
+  }
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') changeSlide(1);
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') changeSlide(-1);
+  });
+</script>
+
+</body>
+</html>
