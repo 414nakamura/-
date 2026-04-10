@@ -1,20 +1,31 @@
 """
-THE PERSON 前日リマインダー（LINE Notify + Google カレンダー）
+THE PERSON 前日リマインダー（LINE Messaging API + Google カレンダー）
 
 Googleカレンダーから翌日の「THE PERSON」予定を取得し、
-LINE Notify でリマインドを送信します。
+LINE Messaging API でリマインドを送信します。
 
-使い方:
-  1. Google Cloud Console で Calendar API を有効化し、
-     OAuth 2.0 クライアント ID を credentials.json として保存
-  2. LINE Notify トークンを取得:
-       https://notify-bot.line.me/ja/
+セットアップ手順:
+  1. LINE Developers Console でチャネルを作成
+       https://developers.line.biz/console/
+       → 「Messaging API」チャネルを作成
+       → 「チャネルアクセストークン」を発行してコピー
+       → Botを自分のLINEに友だち追加
+       → 自分のユーザーIDを確認（後述）
+
+  2. 自分のユーザーIDを確認する方法:
+       スクリプトを LINE_CHANNEL_TOKEN だけ設定して実行すると
+       Webhookで確認できます。または LINE Developers の
+       「Your user ID」欄で確認できます。
+
   3. 環境変数に設定:
-       export LINE_NOTIFY_TOKEN="your_token_here"
-  4. 初回実行（ブラウザで Google 認証）:
+       export LINE_CHANNEL_TOKEN="チャネルアクセストークン"
+       export LINE_USER_ID="あなたのユーザーID（Uxxxxxxxx）"
+
+  4. 実行:
        python line_sender.py
+
   5. cron で毎晩21時に自動実行する例:
-       0 21 * * * LINE_NOTIFY_TOKEN="your_token" /usr/bin/python3 /path/to/line_sender.py
+       0 21 * * * LINE_CHANNEL_TOKEN="..." LINE_USER_ID="..." python3 /path/to/line_sender.py
 """
 
 import os
@@ -33,10 +44,9 @@ SCOPES = ["https://www.googleapis.com/auth/calendar.readonly"]
 TOKEN_FILE = "token_calendar.json"
 CREDENTIALS_FILE = "credentials.json"
 
-# 検索キーワード（予定タイトルに含まれていればリマインド対象）
 KEYWORD = "THE PERSON"
 
-LINE_NOTIFY_URL = "https://notify-api.line.me/api/notify"
+LINE_PUSH_URL = "https://api.line.me/v2/bot/message/push"
 
 JST = timezone(timedelta(hours=9))
 
@@ -73,7 +83,6 @@ def fetch_tomorrow_events(creds: Credentials) -> list[dict]:
     time_min = datetime(tomorrow.year, tomorrow.month, tomorrow.day, 0, 0, 0, tzinfo=JST).isoformat()
     time_max = datetime(tomorrow.year, tomorrow.month, tomorrow.day, 23, 59, 59, tzinfo=JST).isoformat()
 
-    # 全カレンダー一覧を取得
     calendars = service.calendarList().list().execute().get("items", [])
 
     events = []
@@ -117,24 +126,31 @@ def format_event_time(event: dict) -> str:
         return "終日"
 
 
-# ---- LINE Notify 送信 ----------------------------------------------------
+# ---- LINE Messaging API 送信 ---------------------------------------------
 
-def send_line_notify(token: str, message: str) -> bool:
-    """LINE Notify でメッセージを送信する。"""
-    headers = {"Authorization": f"Bearer {token}"}
-    payload = {"message": message}
+def send_line_message(token: str, user_id: str, message: str) -> bool:
+    """LINE Messaging API でプッシュメッセージを送信する。"""
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json",
+    }
+    payload = {
+        "to": user_id,
+        "messages": [{"type": "text", "text": message}],
+    }
 
     try:
-        response = requests.post(LINE_NOTIFY_URL, headers=headers, data=payload, timeout=10)
+        response = requests.post(LINE_PUSH_URL, headers=headers, json=payload, timeout=10)
         response.raise_for_status()
-        print(f"[OK] LINE 送信成功")
+        print("[OK] LINE 送信成功")
         return True
     except requests.exceptions.HTTPError as e:
         print(f"[ERROR] HTTPエラー: {e} (ステータス: {response.status_code})", file=sys.stderr)
+        print(f"[ERROR] レスポンス: {response.text}", file=sys.stderr)
     except requests.exceptions.ConnectionError:
         print("[ERROR] 接続エラー: ネットワークを確認してください", file=sys.stderr)
     except requests.exceptions.Timeout:
-        print("[ERROR] タイムアウト: LINE Notify への接続がタイムアウトしました", file=sys.stderr)
+        print("[ERROR] タイムアウト", file=sys.stderr)
     return False
 
 
@@ -146,7 +162,7 @@ def build_reminder_message(events: list[dict]) -> str:
     date_str = tomorrow.strftime(f"%m月%d日（{weekday}）")
 
     lines = [
-        f"\n【明日の {KEYWORD} リマインド】",
+        f"【明日の {KEYWORD} リマインド】",
         f"日付: {date_str}",
         "",
     ]
@@ -167,11 +183,18 @@ def build_reminder_message(events: list[dict]) -> str:
 # ---- メイン --------------------------------------------------------------
 
 def main():
-    token = os.environ.get("LINE_NOTIFY_TOKEN")
+    token = os.environ.get("LINE_CHANNEL_TOKEN")
+    user_id = os.environ.get("LINE_USER_ID")
+
     if not token:
         sys.exit(
-            "[ERROR] 環境変数 LINE_NOTIFY_TOKEN が設定されていません。\n"
-            "  export LINE_NOTIFY_TOKEN='your_token_here'"
+            "[ERROR] 環境変数 LINE_CHANNEL_TOKEN が設定されていません。\n"
+            "  export LINE_CHANNEL_TOKEN='チャネルアクセストークン'"
+        )
+    if not user_id:
+        sys.exit(
+            "[ERROR] 環境変数 LINE_USER_ID が設定されていません。\n"
+            "  export LINE_USER_ID='UxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxXX'"
         )
 
     print("Google カレンダーに接続中...")
@@ -190,7 +213,7 @@ def main():
     message = build_reminder_message(matched)
     print(f"送信メッセージ:\n{message}\n")
 
-    send_line_notify(token, message)
+    send_line_message(token, user_id, message)
 
 
 if __name__ == "__main__":
