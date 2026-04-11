@@ -96,7 +96,7 @@ def get_email_body(payload: dict) -> str:
     return ""
 
 
-def parse_booking_email(message: dict) -> dict | None:
+def parse_booking_email(message: dict):
     """メールから予約情報（日時・場所・種別・時間）を抽出する。"""
     body = get_email_body(message.get("payload", {}))
     if not body:
