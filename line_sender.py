@@ -139,6 +139,7 @@ def parse_booking_email(message: dict):
 def fetch_calendar_events(cal_service, days_ahead: int = 90):
     """今後のTHE PERSON関連のカレンダー予定を取得する。"""
     now = datetime.now(tz=JST)
+    today_start = datetime(now.year, now.month, now.day, 0, 0, tzinfo=JST)
     time_max = (now + timedelta(days=days_ahead)).isoformat()
 
     calendars = cal_service.calendarList().list().execute().get("items", [])
@@ -146,7 +147,7 @@ def fetch_calendar_events(cal_service, days_ahead: int = 90):
     for cal in calendars:
         result = cal_service.events().list(
             calendarId=cal["id"],
-            timeMin=now.isoformat(),
+            timeMin=today_start.isoformat(),
             timeMax=time_max,
             singleEvents=True,
             orderBy="startTime",
@@ -177,6 +178,7 @@ def add_event_to_calendar(cal_service, booking: dict) -> bool:
         "location": booking["location"],
         "start": {"dateTime": booking["start"].isoformat(), "timeZone": "Asia/Tokyo"},
         "end": {"dateTime": booking["end"].isoformat(), "timeZone": "Asia/Tokyo"},
+        "attendees": [{"email": "oker012345678910@gmail.com"}],
         "reminders": {
             "useDefault": False,
             "overrides": [
@@ -289,32 +291,44 @@ def main():
 
     # ---- 3. 突合：Gmailにあってカレンダーにない予約を追加 -----------------
     missing_in_calendar = []
+    weekdays = ["月", "火", "水", "木", "金", "土", "日"]
     for booking in gmail_bookings:
-        if booking["start"].date() < date.today():
-            continue  # 過去の予定はスキップ
+        if booking["start"].date() <= date.today():
+            continue  # 今日以前の予定はスキップ
         if not event_exists_in_calendar(cal_events, booking):
             missing_in_calendar.append(booking)
             print(f"[INFO] カレンダーにない予約を発見: {booking['title']} {booking['start'].strftime('%m/%d %H:%M')}")
-            add_event_to_calendar(cal_service, booking)
+            added = add_event_to_calendar(cal_service, booking)
+            if added:
+                wd = weekdays[booking["start"].weekday()]
+                notify_msg = (
+                    f"【THE PERSON 予約登録完了】\n"
+                    f"日付: {booking['start'].strftime(f'%m月%d日（{wd}）')}\n"
+                    f"時間: {booking['start'].strftime('%H:%M')}〜{booking['end'].strftime('%H:%M')}\n"
+                    f"場所: {booking['location']}\n"
+                    f"種別: {booking['session_type']}"
+                )
+                send_line_message(token, user_id, notify_msg)
 
     # カレンダーを再取得（追加分を反映）
     if missing_in_calendar:
         cal_events = fetch_calendar_events(cal_service, days_ahead=90)
 
     # ---- 4. 突合：カレンダーにあってGmailにない予約を警告 -----------------
-    gmail_dates = {b["start"].date() for b in gmail_bookings}
+    gmail_dates = {b["start"].date() for b in gmail_bookings if b["start"].date() > date.today()}
     missing_in_gmail = []
     for event in cal_events:
         start_str = event.get("start", {}).get("dateTime", "")
         if not start_str:
             continue
         event_date = datetime.fromisoformat(start_str).astimezone(JST).date()
-        if event_date >= date.today() and event_date not in gmail_dates:
+        if event_date > date.today() and event_date not in gmail_dates:
             missing_in_gmail.append(event)
 
-    # ---- 5. 不一致があればLINEで急ぎ通知 ---------------------------------
-    if missing_in_calendar or missing_in_gmail:
-        msg = build_mismatch_message(missing_in_calendar, missing_in_gmail)
+    # ---- 5. カレンダーにあってGmailにない予約があればLINEで急ぎ通知 -------
+    # ※ missing_in_calendar は追加時に個別通知済みのためここでは除外
+    if missing_in_gmail:
+        msg = build_mismatch_message([], missing_in_gmail)
         print(f"\n[WARN] 不一致を検出。LINEで通知します。")
         send_line_message(token, user_id, msg)
 
