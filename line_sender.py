@@ -77,7 +77,7 @@ def fetch_booking_emails(gmail_service, days: int = 90):
     bookings = []
     for msg in messages:
         detail = gmail_service.users().messages().get(
-            userId="me", messageId=msg["id"], format="full"
+            userId="me", id=msg["id"], format="full"
         ).execute()
         booking = parse_booking_email(detail)
         if booking:
