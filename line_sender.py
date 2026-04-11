@@ -65,7 +65,7 @@ def get_credentials() -> Credentials:
 
 # ---- Gmail：予約メールを読み取る -----------------------------------------
 
-def fetch_booking_emails(gmail_service, days: int = 90) -> list[dict]:
+def fetch_booking_emails(gmail_service, days: int = 90):
     """THE PERSONからの予約確定メールを取得する。"""
     after = (date.today() - timedelta(days=days)).strftime("%Y/%m/%d")
     query = f"from:{SENDER_EMAIL} after:{after}"
@@ -134,7 +134,7 @@ def parse_booking_email(message: dict):
 
 # ---- Google カレンダー操作 -----------------------------------------------
 
-def fetch_calendar_events(cal_service, days_ahead: int = 90) -> list[dict]:
+def fetch_calendar_events(cal_service, days_ahead: int = 90):
     """今後のTHE PERSON関連のカレンダー予定を取得する。"""
     now = datetime.now(tz=JST)
     time_max = (now + timedelta(days=days_ahead)).isoformat()
