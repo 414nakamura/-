@@ -15,6 +15,8 @@ cron で毎晩20時に自動実行する例:
   0 20 * * * cd ~/line-reminder && LINE_CHANNEL_TOKEN="..." LINE_USER_ID="..." python3 line_sender.py
 """
 
+from __future__ import annotations
+
 import base64
 import os
 import re
