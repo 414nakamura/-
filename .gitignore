@@ -1,0 +1,31 @@
+# 認証・機密ファイル
+credentials.json
+token.json
+*.key
+*.pem
+
+# 出力 CSV
+gbp_performance.csv
+gbp_reviews.csv
+gbp_summary.csv
+output/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
